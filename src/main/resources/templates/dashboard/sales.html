@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>dashboard</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div class="flex min-h-screen">
+    <!-- 왼쪽 사이드바 -->
+    <aside class="w-60 bg-white border-r border-gray-200 flex flex-col">
+        <div class="px-4 py-4 border-b">
+            <h1 class="text-lg font-bold text-gray-800">관리자 대시보드</h1>
+            <p class="text-xs text-gray-400 mt-1">Admin Panel</p>
+        </div>
+
+        <nav class="flex-1 px-2 py-4 space-y-1 text-sm">
+            <!-- 매출 대시보드 메뉴 (현재 페이지라고 가정, 강조) -->
+            <a href="/admin/dashboard/sales"
+               class="flex items-center px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-semibold">
+                <span class="mr-2">💰</span>
+                <span>매출 대시보드</span>
+            </a>
+            <!-- 회원 대시보드 메뉴 -->
+            <a href="/admin/dashboard/members"
+               class="flex items-center px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                <span class="mr-2">👤</span>
+                <span>회원 대시보드</span>
+            </a>
+        </nav>
+
+        <div class="px-4 py-3 border-t text-xs text-gray-400">
+            &copy; 2025 My Admin
+        </div>
+    </aside>
+
+    <!-- 오른쪽 메인 영역 -->
+    <main class="flex-1 px-6 py-6">
+        <div class="max-w-6xl mx-auto">
+            <!-- 헤더 -->
+            <header class="mb-8 flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">매출 대시보드</h2>
+                    <p class="text-sm text-gray-500 mt-1">오늘 기준 집계된 매출 통계입니다.</p>
+                </div>
+                <!-- 필터 영역 (예: 기준일 선택 등 필요하면 나중에 추가) -->
+                <!--
+                <div>
+                    <input type="date" class="border rounded px-2 py-1 text-sm">
+                </div>
+                -->
+            </header>
+
+            <!-- 상단 요약 카드 영역 -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="summary-cards">
+                <!-- 카드: 총 매출 -->
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">총 매출액</p>
+                    <p id="totalSales" class="mt-2 text-xl font-bold text-gray-800">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">어제 매출액</p>
+                    <p id="salesYesterday" class="mt-2 text-xl font-bold text-gray-800">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">이번주 매출액</p>
+                    <p id="salesThisWeek" class="mt-2 text-xl font-bold text-gray-800">-</p>
+                </div>
+                <!-- 필요하면 카드 더 추가해서 이번달, 지난달, 3개월도 위에 올릴 수 있음 -->
+            </section>
+
+            <!-- 상단 요약 표 -->
+            <section class="bg-white rounded-2xl shadow p-4 mb-8">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">기간별 매출 요약</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm text-left">
+                        <thead class="border-b text-gray-500">
+                        <tr>
+                            <th class="py-2 pr-4">지표</th>
+                            <th class="py-2 pr-4 text-right">금액</th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                        <tr>
+                            <td class="py-2 pr-4">총 매출액</td>
+                            <td id="tbl-totalSales" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">어제 매출액</td>
+                            <td id="tbl-salesYesterday" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">이번주 매출액</td>
+                            <td id="tbl-salesThisWeek" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">1주전 매출액</td>
+                            <td id="tbl-sales1WeeksAgo" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">2주전 매출액</td>
+                            <td id="tbl-sales2WeeksAgo" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">3주전 매출액</td>
+                            <td id="tbl-sales3WeeksAgo" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">이번달 매출액</td>
+                            <td id="tbl-salesThisMonth" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">지난달 매출액</td>
+                            <td id="tbl-salesLastMonth" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 pr-4">지난 3개월간 매출액</td>
+                            <td id="tbl-salesLast3Months" class="py-2 pr-4 text-right">-</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 하단: 최근 8주 매출 차트 -->
+            <section class="bg-white rounded-2xl shadow p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">최근 8주 매출 추이</h2>
+                    <span class="text-xs text-gray-400">1주전 ~ 8주전 매출 기준</span>
+                </div>
+                <div class="h-72">
+                    <canvas id="weeklySalesChart"></canvas>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+<script>
+    //숫자 "1,234,567" 형식으로 포맷
+    const formatCurrency = (value) =>
+        value == null ? '-' : parseInt(value).toLocaleString('ko-KR') + ' 원';
+
+    async function loadDashboard(){
+        try {
+            const res = await fetch("/api/dashboard/sales");
+            if (!res.ok) {
+                throw new Error("대시보드 API 호출 실패");
+            }
+            const data = await res.json();
+
+            //상단 카드 값 바인딩
+            document.getElementById("totalSales").textContent = formatCurrency(data.totalSales);
+            document.getElementById("salesYesterday").textContent = formatCurrency(data.salesYesterday);
+            document.getElementById("salesThisWeek").textContent = formatCurrency(data.salesThisWeek);
+
+            //표 값 바인딩
+            document.getElementById("tbl-totalSales").textContent = formatCurrency(data.totalSales);
+            document.getElementById("tbl-salesYesterday").textContent = formatCurrency(data.salesYesterday);
+            document.getElementById("tbl-salesThisWeek").textContent = formatCurrency(data.salesThisWeek);
+            document.getElementById("tbl-sales1WeeksAgo").textContent = formatCurrency(data.sales1WeeksAgo);
+            document.getElementById("tbl-sales2WeeksAgo").textContent = formatCurrency(data.sales2WeeksAgo);
+            document.getElementById("tbl-sales3WeeksAgo").textContent = formatCurrency(data.sales3WeeksAgo);
+            document.getElementById("tbl-salesThisMonth").textContent = formatCurrency(data.salesThisMonth);
+            document.getElementById("tbl-salesLastMonth").textContent = formatCurrency(data.salesLastMonth);
+            document.getElementById("tbl-salesLast3Months").textContent = formatCurrency(data.salesLast3Months);
+
+            // 차트 데이터 구성 (1주 전 ~ 8주 전, 이번주)
+            const labels = ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '1주 전', '이번주'];
+
+            const weeklyData = [
+                data.sales8WeeksAgo,
+                data.sales7WeeksAgo,
+                data.sales6WeeksAgo,
+                data.sales5WeeksAgo,
+                data.sales4WeeksAgo,
+                data.sales3WeeksAgo,
+                data.sales2WeeksAgo,
+                data.sales1WeeksAgo,
+                data.salesThisWeek
+            ];
+
+            const ctx = document.getElementById("weeklySalesChart").getContext("2d");
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '주간 매출액',
+                        data: weeklyData,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return value.toLocaleString('ko-KR') + ' 원';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callback: {
+                                label: function (context) {
+                                    const value = context.parsed.y || 0;
+                                    return value.toLocaleString('ko-KR') + ' 원';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error(e);
+            alert("매출 대시보드 데이터를 불러오지 못했습니다.");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>

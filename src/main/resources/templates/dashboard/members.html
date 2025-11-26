@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>dashboard</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div class="flex min-h-screen">
+    <!-- 왼쪽 사이드바 -->
+    <aside class="w-60 bg-white border-r border-gray-200 flex flex-col">
+        <div class="px-4 py-4 border-b">
+            <h1 class="text-lg font-bold text-gray-800">관리자 대시보드</h1>
+            <p class="text-xs text-gray-400 mt-1">Admin Panel</p>
+        </div>
+
+        <nav class="flex-1 px-2 py-4 space-y-1 text-sm">
+            <!-- 매출 대시보드 메뉴 (현재 페이지라고 가정, 강조) -->
+            <a href="/admin/dashboard/sales"
+               class="flex items-center px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                <span class="mr-2">💰</span>
+                <span>매출 대시보드</span>
+            </a>
+            <!-- 회원 대시보드 메뉴 -->
+            <a href="/admin/dashboard/members"
+               class="flex items-center px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-semibold">
+                <span class="mr-2">👤</span>
+                <span>회원 대시보드</span>
+            </a>
+        </nav>
+
+        <div class="px-4 py-3 border-t text-xs text-gray-400">
+            &copy; 2025 My Admin
+        </div>
+    </aside>
+
+    <!-- 오른쪽 메인 영역 -->
+    <main class="flex-1 px-6 py-6">
+        <div class="max-w-6xl mx-auto">
+            <!-- 헤더 -->
+            <header class="mb-8 flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">회원 대시보드</h2>
+                    <p class="text-sm text-gray-500 mt-1">오늘 기준 회원 가입 통계입니다.</p>
+                </div>
+            </header>
+
+            <!-- 상단 요약 카드 (총/오늘/어제) -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">총 회원 수</p>
+                    <p id="totalMembers" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">오늘 가입</p>
+                    <p id="signupsToday" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <p class="text-sm text-gray-500">어제 가입</p>
+                    <p id="signupsYesterday" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+                </div>
+            </section>
+
+            <!-- 하단: 그래프 영역 -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- 최근 4주 회원가입 추이 (라인/에어리어 느낌) -->
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">최근 4주 회원가입 추이</h3>
+                        <span class="text-xs text-gray-400">3주 전 ~ 이번주</span>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="weeklySignupChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 최근 3개월 회원가입 추이 (막대 그래프) -->
+                <div class="bg-white rounded-2xl shadow p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">최근 3개월 회원가입 추이</h3>
+                        <span class="text-xs text-gray-400">이번달 / 지난달 / 최근 3개월</span>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="monthlySignupChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+
+
+<script>
+    function formatCount(value) {
+        if(value == null) return "-";
+        return Number(value).toLocaleString('ko-KR') + " 명";
+    }
+
+    async function loadMemberDashboard() {
+        try {
+            const res = await fetch("/api/dashboard/members");
+            if(!res.ok){
+                throw new Error("회원 대시보드 API 호출 실패");
+            }
+
+            const data = await res.json();
+
+            //상단 카드 바인딩
+            document.getElementById("totalMembers").textContent = formatCount(data.totalMembers);
+            document.getElementById("signupsToday").textContent = formatCount(data.signupsToday);
+            document.getElementById("signupsYesterday").textContent = formatCount(data.signupsYesterday);
+
+            // ===== 최근 4주 회원가입 추이 (라인 + 영역) =====
+            const weeklyLabels = ['3주 전', '2주 전', '1주 전', '이번주'];
+            const weeklyValues = [
+                data.signups3WeeksAgo,
+                data.signups2WeeksAgo,
+                data.signups1WeekAgo,
+                data.signupsThisWeek
+            ];
+
+            const weeklyCtx = document.getElementById('weeklySignupChart').getContext('2d');
+
+            new Chart(weeklyCtx, {
+                type: 'line',
+                data: {
+                    labels: weeklyLabels,
+                    datasets: [{
+                        label: '주간 가입 수',
+                        data: weeklyValues,
+                        tension: 0.3,
+                        fill: true,      // 영역 그래프 느낌
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return value.toLocaleString('ko-KR') + ' 명';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed.y || 0;
+                                    return value.toLocaleString('ko-KR') + ' 명';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ===== 최근 3개월 회원가입 추이 (막대) =====
+            const monthlyLabels = ['이번달', '지난달', '최근 3개월'];
+            const monthlyValues = [
+                data.signupsThisMonth,
+                data.signupsLastMonth,
+                data.signupsLast3Month
+            ];
+
+            const monthlyCtx = document.getElementById('monthlySignupChart').getContext('2d');
+
+            new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: '월간 가입 수',
+                        data: monthlyValues,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return value.toLocaleString('ko-KR') + ' 명';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed.y || 0;
+                                    return value.toLocaleString('ko-KR') + ' 명';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+        } catch (e){
+            console.error(e);
+            alert('회원 대시보드 데이터를 불러오지 못했습니다.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadMemberDashboard);
+</script>
+</body>
+</html>
